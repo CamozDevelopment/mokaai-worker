@@ -41,7 +41,7 @@ def load_models():
         print(f"Loading {name}...")
         MODELS[name] = Llama(
             model_path=dest,
-            n_gpu_layers=-1,
+            n_gpu_layers=0,
             n_ctx=2048,
             verbose=False,
         )
