@@ -7,7 +7,7 @@ import os
 import runpod
 from llama_cpp import Llama
 
-VOLUME_PATH = os.environ.get("MODEL_DIR", "/runpod-volume")
+VOLUME_PATH = os.environ.get("MODEL_DIR", "/workspace")
 MODELS = {}
 
 
