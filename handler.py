@@ -1,35 +1,46 @@
 """
 RunPod Serverless handler for Moka models.
-Loads GGUF models from network volume on startup, routes by model name.
+Downloads GGUF models on cold start, caches locally.
 """
 
 import os
+import urllib.request
 import runpod
 from llama_cpp import Llama
 
-VOLUME_PATH = os.environ.get("MODEL_DIR", "/workspace")
+MODEL_DIR = "/tmp/models"
 MODELS = {}
+
+MODEL_URLS = {
+    "moka1": os.environ.get(
+        "MOKA1_URL",
+        "https://huggingface.co/CamozDevelopment/moka1-gguf/resolve/main/moka1-Q4_K_M.gguf",
+    ),
+}
+
+
+def download_model(name, url, dest):
+    """Download a model file if not already cached."""
+    if os.path.exists(dest):
+        print(f"{name} already cached at {dest}")
+        return
+    print(f"Downloading {name} from {url}...")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    urllib.request.urlretrieve(url, dest)
+    size_mb = os.path.getsize(dest) / (1024 * 1024)
+    print(f"{name} downloaded: {size_mb:.0f} MB")
 
 
 def load_models():
-    """Load available models from network volume into GPU memory."""
+    """Download and load models into GPU memory."""
     global MODELS
 
-    moka1_path = os.path.join(VOLUME_PATH, "moka1-Q4_K_M.gguf")
-    if os.path.exists(moka1_path):
-        print("Loading Moka1 (1.5B Q4_K_M)...")
-        MODELS["moka1"] = Llama(
-            model_path=moka1_path,
-            n_gpu_layers=-1,
-            n_ctx=2048,
-            verbose=False,
-        )
-
-    smart_path = os.path.join(VOLUME_PATH, "moka1-smart-Q4_K_M.gguf")
-    if os.path.exists(smart_path):
-        print("Loading Moka1-Smart (3B Q4_K_M)...")
-        MODELS["moka1-smart"] = Llama(
-            model_path=smart_path,
+    for name, url in MODEL_URLS.items():
+        dest = os.path.join(MODEL_DIR, f"{name}.gguf")
+        download_model(name, url, dest)
+        print(f"Loading {name}...")
+        MODELS[name] = Llama(
+            model_path=dest,
             n_gpu_layers=-1,
             n_ctx=2048,
             verbose=False,
